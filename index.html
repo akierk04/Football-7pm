@@ -128,6 +128,21 @@
   <button class="btn btn-primary" id="submit-btn" onclick="submitVote()">Submit vote</button>
   <div class="success" id="vote-success">Vote recorded! 🎉</div>
   <div class="info" id="vote-info"></div>
+
+  <hr />
+  <div class="section-title">Who's in & out</div>
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-label">In ✅</div><div class="stat-value stat-in" id="p-in-count">0</div></div>
+    <div class="stat-card"><div class="stat-label">Out ❌</div><div class="stat-value stat-out" id="p-out-count">0</div></div>
+  </div>
+  <div style="margin-bottom:10px;">
+    <div class="section-title" style="margin-bottom:8px;">✅ In</div>
+    <div id="p-in-list"><div class="empty-state">No one yet</div></div>
+  </div>
+  <div style="margin-bottom:20px;">
+    <div class="section-title" style="margin-bottom:8px;">❌ Out</div>
+    <div id="p-out-list"><div class="empty-state">No one yet</div></div>
+  </div>
 </div>
 
 <!-- ADMIN SCREEN -->
@@ -170,7 +185,7 @@
     <hr />
     <div class="section-title">Share</div>
     <div class="share-box">
-      <span class="share-url" id="share-url">https://Football-7pm</span>
+      <span class="share-url" id="share-url">https://akierk04.github.io/Football-7pm</span>
       <button class="copy-btn" onclick="copyLink()">Copy</button>
     </div>
   </div>
@@ -382,10 +397,12 @@
   }
 
   function refreshVotesList() {
-    const inC = votes.filter(v => v.vote === 'In').length;
-    const outC = votes.filter(v => v.vote === 'Out').length;
-    document.getElementById('a-in').textContent = inC;
-    document.getElementById('a-out').textContent = outC;
+    const inVotes = votes.filter(v => v.vote === 'In');
+    const outVotes = votes.filter(v => v.vote === 'Out');
+
+    // Admin counts
+    document.getElementById('a-in').textContent = inVotes.length;
+    document.getElementById('a-out').textContent = outVotes.length;
     const list = document.getElementById('a-player-list');
     list.innerHTML = votes.length === 0
       ? '<div class="empty-state">No votes yet</div>'
@@ -393,6 +410,28 @@
           <div class="list-row">
             <span class="list-row-name">${v.name}</span>
             <span class="badge ${v.vote === 'In' ? 'badge-in' : 'badge-out'}">${v.vote}</span>
+          </div>`).join('');
+
+    // Player view counts
+    document.getElementById('p-in-count').textContent = inVotes.length;
+    document.getElementById('p-out-count').textContent = outVotes.length;
+
+    const inList = document.getElementById('p-in-list');
+    inList.innerHTML = inVotes.length === 0
+      ? '<div class="empty-state">No one yet</div>'
+      : inVotes.map(v => `
+          <div class="list-row">
+            <span class="list-row-name">${v.name}</span>
+            <span class="badge badge-in">In</span>
+          </div>`).join('');
+
+    const outList = document.getElementById('p-out-list');
+    outList.innerHTML = outVotes.length === 0
+      ? '<div class="empty-state">No one yet</div>'
+      : outVotes.map(v => `
+          <div class="list-row">
+            <span class="list-row-name">${v.name}</span>
+            <span class="badge badge-out">Out</span>
           </div>`).join('');
   }
 
