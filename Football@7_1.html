@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Football Attendance</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #111; min-height: 100vh; }
+
+  .tab-bar { display: flex; background: #fff; border-bottom: 1px solid #e5e5e0; position: sticky; top: 0; z-index: 10; }
+  .tab { flex: 1; padding: 14px; text-align: center; font-size: 15px; cursor: pointer; color: #888; background: none; border: none; border-bottom: 3px solid transparent; font-family: inherit; }
+  .tab.active { color: #111; border-bottom: 3px solid #111; font-weight: 600; }
+
+  .screen { display: none; padding: 16px; max-width: 480px; margin: 0 auto; }
+  .screen.active { display: block; }
+
+  .game-card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 20px; border: 1px solid #e5e5e0; }
+  .game-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .game-meta { font-size: 14px; color: #666; line-height: 1.8; }
+
+  .cap-row { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin: 10px 0 4px; }
+  .cap-bar { height: 7px; background: #eee; border-radius: 99px; overflow: hidden; }
+  .cap-fill { height: 100%; border-radius: 99px; background: #111; transition: width 0.4s; }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
+  .field input { width: 100%; padding: 11px 14px; font-size: 15px; border: 1px solid #ddd; border-radius: 10px; background: #fff; color: #111; font-family: inherit; }
+  .field input:focus { outline: none; border-color: #111; }
+
+  .vote-btns { display: flex; gap: 10px; margin-bottom: 6px; }
+  .vote-btn { flex: 1; padding: 13px; border-radius: 10px; border: 1px solid #ddd; font-size: 16px; font-weight: 600; cursor: pointer; background: #fff; color: #111; font-family: inherit; transition: all 0.15s; }
+  .vote-btn.in.selected { background: #1D9E75; border-color: #1D9E75; color: #fff; }
+  .vote-btn.out.selected { background: #E24B4A; border-color: #E24B4A; color: #fff; }
+
+  .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-primary { background: #111; color: #fff; }
+  .btn-disabled { background: #ccc; color: #fff; cursor: not-allowed; }
+
+  .error { font-size: 13px; color: #E24B4A; margin-top: 5px; display: none; }
+  .success { font-size: 13px; color: #1D9E75; margin-top: 8px; text-align: center; display: none; }
+  .info { font-size: 13px; color: #888; margin-top: 8px; text-align: center; }
+
+  hr { border: none; border-top: 1px solid #e5e5e0; margin: 20px 0; }
+
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .stat-card { background: #fff; border-radius: 12px; padding: 14px; border: 1px solid #e5e5e0; }
+  .stat-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .stat-value { font-size: 28px; font-weight: 700; }
+  .stat-in { color: #1D9E75; }
+  .stat-out { color: #E24B4A; }
+
+  .player-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+  .player-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: #fff; border: 1px solid #e5e5e0; }
+  .player-name { font-size: 15px; }
+  .badge { font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 99px; }
+  .badge-in { background: #E1F5EE; color: #0F6E56; }
+  .badge-out { background: #FCEBEB; color: #A32D2D; }
+
+  .empty-state { font-size: 14px; color: #aaa; text-align: center; padding: 20px 0; }
+
+  .share-box { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .share-url { font-size: 13px; color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .copy-btn { flex-shrink: 0; font-size: 13px; font-weight: 600; background: #f0f0eb; border: none; border-radius: 8px; padding: 7px 14px; cursor: pointer; font-family: inherit; color: #111; }
+
+  .section-title { font-size: 13px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #111; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="switchTab('player')">⚽ Player</button>
+  <button class="tab" onclick="switchTab('admin')">🛠 Admin</button>
+</div>
+
+<!-- PLAYER SCREEN -->
+<div id="tab-player" class="screen active">
+  <div class="game-card">
+    <div class="game-title" id="p-title">Loading...</div>
+    <div class="game-meta">
+      <div id="p-datetime">—</div>
+      <div id="p-location">—</div>
+    </div>
+    <div class="cap-row">
+      <span>Players confirmed</span>
+      <span id="p-cap-count">— / —</span>
+    </div>
+    <div class="cap-bar"><div class="cap-fill" id="p-cap-bar" style="width:0%"></div></div>
+  </div>
+
+  <div class="field">
+    <label>Your name</label>
+    <input type="text" id="player-name" placeholder="e.g. Alex" />
+    <div class="error" id="err-name">Please enter your name.</div>
+  </div>
+
+  <div class="field">
+    <label>Are you in for this game?</label>
+    <div class="vote-btns">
+      <button class="vote-btn in" id="btn-in" onclick="selectVote('In')">✅ In</button>
+      <button class="vote-btn out" id="btn-out" onclick="selectVote('Out')">❌ Out</button>
+    </div>
+    <div class="error" id="err-vote">Please select In or Out.</div>
+  </div>
+
+  <button class="btn btn-primary" id="submit-btn" onclick="submitVote()">Submit vote</button>
+  <div class="success" id="vote-success">Vote recorded! 🎉</div>
+  <div class="info" id="vote-info"></div>
+</div>
+
+<!-- ADMIN SCREEN -->
+<div id="tab-admin" class="screen">
+
+  <div class="section-title">Game details</div>
+
+  <div class="field">
+    <label>Match title</label>
+    <input type="text" id="a-title" value="Sunday Kickabout" />
+  </div>
+  <div class="field">
+    <label>Date</label>
+    <input type="date" id="a-date" value="2026-04-06" />
+  </div>
+  <div class="field">
+    <label>Time</label>
+    <input type="time" id="a-time" value="10:00" />
+  </div>
+  <div class="field">
+    <label>Location / field name</label>
+    <input type="text" id="a-location" value="Riverside Park, Field 2" />
+  </div>
+  <div class="field">
+    <label>Max players</label>
+    <input type="number" id="a-max" value="14" min="1" max="99" />
+  </div>
+  <button class="btn btn-primary" onclick="saveGame()">Save details</button>
+  <div class="success" id="save-success">Details saved!</div>
+
+  <hr />
+  <div class="section-title">Responses</div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-label">In ✅</div><div class="stat-value stat-in" id="a-in">—</div></div>
+    <div class="stat-card"><div class="stat-label">Out ❌</div><div class="stat-value stat-out" id="a-out">—</div></div>
+  </div>
+
+  <div class="player-list" id="a-player-list">
+    <div class="empty-state"><span class="spinner"></span> Loading...</div>
+  </div>
+
+  <hr />
+  <div class="section-title">Share</div>
+  <div class="share-box">
+    <span class="share-url" id="share-url">https://akierk04.github.io/Football-7pm</span>
+    <button class="copy-btn" onclick="copyLink()">Copy</button>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://lhhftshgqrznofpckaqk.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxoaGZ0c2hncXJ6bm9mcGNrYXFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDEzNzgsImV4cCI6MjA5MDQ3NzM3OH0.SDIr6bPsp6_yryf2TMHm3UnCWWeM15iAP0bMqex428w';
+
+  const headers = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+
+  let game = null;
+  let votes = [];
+  let selectedVote = null;
+
+  async function api(path, options = {}) {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, { headers, ...options });
+    if (!res.ok) throw new Error(await res.text());
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  async function loadGame() {
+    try {
+      const data = await api('game?order=id&limit=1');
+      if (data && data.length > 0) {
+        game = data[0];
+        document.getElementById('a-title').value = game.title;
+        document.getElementById('a-date').value = game.date;
+        document.getElementById('a-time').value = game.time;
+        document.getElementById('a-location').value = game.location;
+        document.getElementById('a-max').value = game.max_players;
+        refreshPlayerCard();
+      }
+    } catch (e) { console.error('loadGame:', e); }
+  }
+
+  async function loadVotes() {
+    try {
+      votes = await api('votes?order=created_at');
+      refreshPlayerCard();
+      refreshAdminList();
+    } catch (e) { console.error('loadVotes:', e); }
+  }
+
+  function refreshPlayerCard() {
+    if (!game) return;
+    document.getElementById('p-title').textContent = game.title;
+    const d = new Date(game.date + 'T' + game.time);
+    document.getElementById('p-datetime').textContent =
+      d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + formatTime(game.time);
+    document.getElementById('p-location').textContent = game.location;
+    const inC = votes.filter(v => v.vote === 'In').length;
+    const pct = Math.min(100, Math.round((inC / game.max_players) * 100));
+    document.getElementById('p-cap-count').textContent = inC + ' / ' + game.max_players;
+    document.getElementById('p-cap-bar').style.width = pct + '%';
+  }
+
+  function refreshAdminList() {
+    const inC = votes.filter(v => v.vote === 'In').length;
+    const outC = votes.filter(v => v.vote === 'Out').length;
+    document.getElementById('a-in').textContent = inC;
+    document.getElementById('a-out').textContent = outC;
+    const list = document.getElementById('a-player-list');
+    if (votes.length === 0) {
+      list.innerHTML = '<div class="empty-state">No votes yet</div>';
+    } else {
+      list.innerHTML = votes.map(v => `
+        <div class="player-row">
+          <span class="player-name">${v.name}</span>
+          <span class="badge ${v.vote === 'In' ? 'badge-in' : 'badge-out'}">${v.vote}</span>
+        </div>`).join('');
+    }
+  }
+
+  function selectVote(v) {
+    selectedVote = v;
+    document.getElementById('btn-in').classList.toggle('selected', v === 'In');
+    document.getElementById('btn-out').classList.toggle('selected', v === 'Out');
+    document.getElementById('err-vote').style.display = 'none';
+  }
+
+  async function submitVote() {
+    const name = document.getElementById('player-name').value.trim();
+    document.getElementById('err-name').style.display = name ? 'none' : 'block';
+    document.getElementById('err-vote').style.display = selectedVote ? 'none' : 'block';
+    if (!name || !selectedVote) return;
+
+    const btn = document.getElementById('submit-btn');
+    btn.textContent = 'Submitting...';
+    btn.disabled = true;
+
+    try {
+      const existing = votes.find(v => v.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        await api('votes?id=eq.' + existing.id, {
+          method: 'PATCH',
+          body: JSON.stringify({ vote: selectedVote })
+        });
+      } else {
+        await api('votes', {
+          method: 'POST',
+          body: JSON.stringify({ name, vote: selectedVote })
+        });
+      }
+      await loadVotes();
+      const s = document.getElementById('vote-success');
+      s.style.display = 'block';
+      setTimeout(() => s.style.display = 'none', 2500);
+      document.getElementById('player-name').value = '';
+      selectedVote = null;
+      document.getElementById('btn-in').classList.remove('selected');
+      document.getElementById('btn-out').classList.remove('selected');
+    } catch (e) {
+      document.getElementById('vote-info').textContent = 'Error saving vote. Please try again.';
+    }
+
+    btn.textContent = 'Submit vote';
+    btn.disabled = false;
+  }
+
+  async function saveGame() {
+    if (!game) return;
+    const updated = {
+      title: document.getElementById('a-title').value.trim(),
+      date: document.getElementById('a-date').value,
+      time: document.getElementById('a-time').value,
+      location: document.getElementById('a-location').value.trim(),
+      max_players: parseInt(document.getElementById('a-max').value)
+    };
+    try {
+      await api('game?id=eq.' + game.id, {
+        method: 'PATCH',
+        body: JSON.stringify(updated)
+      });
+      game = { ...game, ...updated };
+      refreshPlayerCard();
+      const s = document.getElementById('save-success');
+      s.style.display = 'block';
+      setTimeout(() => s.style.display = 'none', 2000);
+    } catch (e) { console.error('saveGame:', e); }
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      t.classList.toggle('active', (tab === 'player' && i === 0) || (tab === 'admin' && i === 1));
+    });
+    document.getElementById('tab-player').classList.toggle('active', tab === 'player');
+    document.getElementById('tab-admin').classList.toggle('active', tab === 'admin');
+    if (tab === 'admin') loadVotes();
+  }
+
+  function copyLink() {
+    const url = document.getElementById('share-url').textContent;
+    navigator.clipboard.writeText(url).catch(() => {});
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  }
+
+  function formatTime(t) {
+    const [h, m] = t.split(':').map(Number);
+    return ((h % 12) || 12) + ':' + String(m).padStart(2, '0') + ' ' + (h >= 12 ? 'PM' : 'AM');
+  }
+
+  loadGame();
+  loadVotes();
+  setInterval(loadVotes, 30000);
+</script>
+</body>
+</html>
