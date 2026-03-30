@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Football Attendance</title>
+<title>Football @ 7pm</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #111; min-height: 100vh; }
@@ -25,8 +25,17 @@
 
   .field { margin-bottom: 16px; }
   .field label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
-  .field input { width: 100%; padding: 11px 14px; font-size: 15px; border: 1px solid #ddd; border-radius: 10px; background: #fff; color: #111; font-family: inherit; }
-  .field input:focus { outline: none; border-color: #111; }
+  .field select, .field input {
+    width: 100%; padding: 11px 14px; font-size: 15px;
+    border: 1px solid #ddd; border-radius: 10px;
+    background: #fff; color: #111; font-family: inherit;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+  }
+  .field input { background-image: none; }
+  .field select:focus, .field input:focus { outline: none; border-color: #111; }
 
   .vote-btns { display: flex; gap: 10px; margin-bottom: 6px; }
   .vote-btn { flex: 1; padding: 13px; border-radius: 10px; border: 1px solid #ddd; font-size: 16px; font-weight: 600; cursor: pointer; background: #fff; color: #111; font-family: inherit; transition: all 0.15s; }
@@ -35,7 +44,6 @@
 
   .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; }
   .btn-primary { background: #111; color: #fff; }
-  .btn-disabled { background: #ccc; color: #fff; cursor: not-allowed; }
 
   .error { font-size: 13px; color: #E24B4A; margin-top: 5px; display: none; }
   .success { font-size: 13px; color: #1D9E75; margin-top: 8px; text-align: center; display: none; }
@@ -93,8 +101,35 @@
 
   <div class="field">
     <label>Your name</label>
-    <input type="text" id="player-name" placeholder="e.g. Alex" />
-    <div class="error" id="err-name">Please enter your name.</div>
+    <select id="player-name">
+      <option value="">— Select your name —</option>
+      <option>Vedant</option>
+      <option>Moksh</option>
+      <option>SP</option>
+      <option>Rachit</option>
+      <option>Aashay</option>
+      <option>Soham B</option>
+      <option>Sanjith</option>
+      <option>Nayen</option>
+      <option>Karan</option>
+      <option>Thannir</option>
+      <option>Aryan</option>
+      <option>Samyak</option>
+      <option>Yash</option>
+      <option>Abhay</option>
+      <option>Jas</option>
+      <option>DJ</option>
+      <option>Akhil</option>
+      <option>Sam</option>
+      <option>GG</option>
+      <option>Karthik</option>
+      <option>Abhi</option>
+      <option>Subodh</option>
+      <option>Tushar</option>
+      <option>Chaitanya</option>
+      <option>Jose</option>
+    </select>
+    <div class="error" id="err-name">Please select your name.</div>
   </div>
 
   <div class="field">
@@ -117,25 +152,35 @@
   <div class="section-title">Game details</div>
 
   <div class="field">
-    <label>Match title</label>
-    <input type="text" id="a-title" value="Sunday Kickabout" />
+    <label>Location</label>
+    <select id="a-location" onchange="updateTitleFromLocation()">
+      <option value="Russell Creek">Russell Creek (Monday 7pm)</option>
+      <option value="Carpenter Park">Carpenter Park (Wednesday 7pm)</option>
+      <option value="Old Sheppard">Old Sheppard (Friday/Saturday 7pm)</option>
+      <option value="UTD">UTD (Friday/Saturday 7pm)</option>
+    </select>
   </div>
+
+  <div class="field">
+    <label>Title (auto-set from location)</label>
+    <input type="text" id="a-title" readonly style="background:#f5f5f0; color:#888; background-image:none;" />
+  </div>
+
   <div class="field">
     <label>Date</label>
-    <input type="date" id="a-date" value="2026-04-06" />
+    <input type="date" id="a-date" style="background-image:none;" />
   </div>
+
   <div class="field">
     <label>Time</label>
-    <input type="time" id="a-time" value="10:00" />
+    <input type="time" id="a-time" value="19:00" style="background-image:none;" />
   </div>
-  <div class="field">
-    <label>Location / field name</label>
-    <input type="text" id="a-location" value="Riverside Park, Field 2" />
-  </div>
+
   <div class="field">
     <label>Max players</label>
-    <input type="number" id="a-max" value="14" min="1" max="99" />
+    <input type="number" id="a-max" value="14" min="1" max="99" style="background-image:none;" />
   </div>
+
   <button class="btn btn-primary" onclick="saveGame()">Save details</button>
   <div class="success" id="save-success">Details saved!</div>
 
@@ -154,7 +199,7 @@
   <hr />
   <div class="section-title">Share</div>
   <div class="share-box">
-    <span class="share-url" id="share-url">https://akierk04.github.io/Football-7pm</span>
+    <span class="share-url" id="share-url">https://Football@7pm</span>
     <button class="copy-btn" onclick="copyLink()">Copy</button>
   </div>
 </div>
@@ -168,6 +213,13 @@
     'Authorization': 'Bearer ' + SUPABASE_KEY,
     'Content-Type': 'application/json',
     'Prefer': 'return=representation'
+  };
+
+  const LOCATION_TITLES = {
+    'Russell Creek':  'Russell Creek · Monday 7pm',
+    'Carpenter Park': 'Carpenter Park · Wednesday 7pm',
+    'Old Sheppard':   'Old Sheppard · Friday/Saturday 7pm',
+    'UTD':            'UTD · Friday/Saturday 7pm'
   };
 
   let game = null;
@@ -186,10 +238,10 @@
       const data = await api('game?order=id&limit=1');
       if (data && data.length > 0) {
         game = data[0];
+        document.getElementById('a-location').value = game.location;
         document.getElementById('a-title').value = game.title;
         document.getElementById('a-date').value = game.date;
         document.getElementById('a-time').value = game.time;
-        document.getElementById('a-location').value = game.location;
         document.getElementById('a-max').value = game.max_players;
         refreshPlayerCard();
       }
@@ -204,12 +256,21 @@
     } catch (e) { console.error('loadVotes:', e); }
   }
 
+  function updateTitleFromLocation() {
+    const loc = document.getElementById('a-location').value;
+    document.getElementById('a-title').value = LOCATION_TITLES[loc] || loc;
+  }
+
   function refreshPlayerCard() {
     if (!game) return;
     document.getElementById('p-title').textContent = game.title;
-    const d = new Date(game.date + 'T' + game.time);
-    document.getElementById('p-datetime').textContent =
-      d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + formatTime(game.time);
+    try {
+      const d = new Date(game.date + 'T' + game.time);
+      document.getElementById('p-datetime').textContent =
+        d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + formatTime(game.time);
+    } catch(e) {
+      document.getElementById('p-datetime').textContent = game.date + ' · ' + formatTime(game.time);
+    }
     document.getElementById('p-location').textContent = game.location;
     const inC = votes.filter(v => v.vote === 'In').length;
     const pct = Math.min(100, Math.round((inC / game.max_players) * 100));
@@ -223,7 +284,7 @@
     document.getElementById('a-in').textContent = inC;
     document.getElementById('a-out').textContent = outC;
     const list = document.getElementById('a-player-list');
-    if (votes.length === 0) {
+    if (!votes || votes.length === 0) {
       list.innerHTML = '<div class="empty-state">No votes yet</div>';
     } else {
       list.innerHTML = votes.map(v => `
@@ -242,7 +303,7 @@
   }
 
   async function submitVote() {
-    const name = document.getElementById('player-name').value.trim();
+    const name = document.getElementById('player-name').value;
     document.getElementById('err-name').style.display = name ? 'none' : 'block';
     document.getElementById('err-vote').style.display = selectedVote ? 'none' : 'block';
     if (!name || !selectedVote) return;
@@ -250,6 +311,7 @@
     const btn = document.getElementById('submit-btn');
     btn.textContent = 'Submitting...';
     btn.disabled = true;
+    document.getElementById('vote-info').textContent = '';
 
     try {
       const existing = votes.find(v => v.name.toLowerCase() === name.toLowerCase());
@@ -282,11 +344,12 @@
 
   async function saveGame() {
     if (!game) return;
+    const loc = document.getElementById('a-location').value;
     const updated = {
-      title: document.getElementById('a-title').value.trim(),
+      title: LOCATION_TITLES[loc] || loc,
       date: document.getElementById('a-date').value,
       time: document.getElementById('a-time').value,
-      location: document.getElementById('a-location').value.trim(),
+      location: loc,
       max_players: parseInt(document.getElementById('a-max').value)
     };
     try {
@@ -295,6 +358,7 @@
         body: JSON.stringify(updated)
       });
       game = { ...game, ...updated };
+      document.getElementById('a-title').value = updated.title;
       refreshPlayerCard();
       const s = document.getElementById('save-success');
       s.style.display = 'block';
@@ -324,6 +388,7 @@
     return ((h % 12) || 12) + ':' + String(m).padStart(2, '0') + ' ' + (h >= 12 ? 'PM' : 'AM');
   }
 
+  updateTitleFromLocation();
   loadGame();
   loadVotes();
   setInterval(loadVotes, 30000);
