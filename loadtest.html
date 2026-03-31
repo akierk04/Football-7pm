@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Football 7pm — Load Test</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #111; padding: 20px; }
+  .card { background: #fff; border-radius: 14px; padding: 20px; border: 1px solid #e5e5e0; margin-bottom: 16px; max-width: 700px; margin-left: auto; margin-right: auto; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .sub { font-size: 14px; color: #888; margin-bottom: 20px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; color: #666; margin-bottom: 5px; }
+  .field input, .field select { width: 100%; padding: 9px 12px; font-size: 14px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; background: #fff; color: #111; }
+  .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .btn { padding: 11px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-primary { background: #111; color: #fff; }
+  .btn-danger { background: #E24B4A; color: #fff; }
+  .btn-ghost { background: #f0f0eb; color: #111; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat { background: #f5f5f0; border-radius: 10px; padding: 12px; text-align: center; }
+  .stat-val { font-size: 26px; font-weight: 700; }
+  .stat-lbl { font-size: 11px; color: #888; margin-top: 2px; }
+  .green { color: #1D9E75; }
+  .red { color: #E24B4A; }
+  .amber { color: #BA7517; }
+  .blue { color: #185FA5; }
+  .log-wrap { background: #111; border-radius: 10px; padding: 14px; height: 320px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+  .log-line { padding: 2px 0; border-bottom: 1px solid #222; }
+  .log-ok { color: #4ade80; }
+  .log-err { color: #f87171; }
+  .log-info { color: #93c5fd; }
+  .log-warn { color: #fbbf24; }
+  .progress-wrap { background: #eee; border-radius: 99px; height: 8px; overflow: hidden; margin-bottom: 16px; }
+  .progress-bar { height: 100%; border-radius: 99px; background: #111; transition: width 0.2s; width: 0%; }
+  .section-title { font-size: 13px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+  .result-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0eb; font-size: 13px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
+  .badge-ok { background: #E1F5EE; color: #0F6E56; }
+  .badge-err { background: #FCEBEB; color: #A32D2D; }
+  .badge-slow { background: #FAEEDA; color: #633806; }
+  hr { border: none; border-top: 1px solid #e5e5e0; margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>⚽ Football 7pm — Load Test</h1>
+  <p class="sub">Simulate multiple players voting at the same time to test concurrency</p>
+
+  <div class="row">
+    <div class="field">
+      <label>Concurrent voters</label>
+      <input type="number" id="concurrent" value="10" min="1" max="30" />
+    </div>
+    <div class="field">
+      <label>Vote delay spread (ms)</label>
+      <input type="number" id="spread" value="0" min="0" max="2000" step="100" />
+    </div>
+    <div class="field">
+      <label>Vote choice</label>
+      <select id="vote-choice">
+        <option value="random">Random In/Out</option>
+        <option value="In">All In</option>
+        <option value="Out">All Out</option>
+      </select>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:10px;">
+    <button class="btn btn-primary" id="run-btn" onclick="runTest()">▶ Run Test</button>
+    <button class="btn btn-ghost" onclick="clearVotesAndLog()">🗑 Clear test votes</button>
+    <button class="btn btn-ghost" onclick="clearLog()">Clear log</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val green" id="s-success">0</div><div class="stat-lbl">Succeeded</div></div>
+    <div class="stat"><div class="stat-val red" id="s-failed">0</div><div class="stat-lbl">Failed</div></div>
+    <div class="stat"><div class="stat-val amber" id="s-avg">—</div><div class="stat-lbl">Avg ms</div></div>
+    <div class="stat"><div class="stat-val blue" id="s-max">—</div><div class="stat-lbl">Max ms</div></div>
+  </div>
+  <div class="progress-wrap"><div class="progress-bar" id="progress"></div></div>
+  <div class="log-wrap" id="log"></div>
+</div>
+
+<div class="card" id="results-card" style="display:none;">
+  <div class="section-title">Test results</div>
+  <div id="results-list"></div>
+  <hr />
+  <div id="summary" style="font-size:13px; color:#666;"></div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://lhhftshgqrznofpckaqk.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxoaGZ0c2hncXJ6bm9mcGNrYXFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDEzNzgsImV4cCI6MjA5MDQ3NzM3OH0.SDIr6bPsp6_yryf2TMHm3UnCWWeM15iAP0bMqex428w';
+
+  const headers = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+
+  // Test player names
+  const TEST_PLAYERS = [
+    'Test_Alpha','Test_Bravo','Test_Charlie','Test_Delta','Test_Echo',
+    'Test_Foxtrot','Test_Golf','Test_Hotel','Test_India','Test_Juliet',
+    'Test_Kilo','Test_Lima','Test_Mike','Test_November','Test_Oscar',
+    'Test_Papa','Test_Quebec','Test_Romeo','Test_Sierra','Test_Tango',
+    'Test_Uniform','Test_Victor','Test_Whiskey','Test_Xray','Test_Yankee',
+    'Test_Zulu','Test_Alpha2','Test_Bravo2','Test_Charlie2','Test_Delta2'
+  ];
+
+  let logEl, results = [], success = 0, failed = 0, times = [];
+
+  function log(msg, type = 'info') {
+    const line = document.createElement('div');
+    line.className = 'log-line log-' + type;
+    const ts = new Date().toLocaleTimeString('en-US', { hour12: false, timeZone: 'America/Chicago' });
+    line.textContent = `[${ts}] ${msg}`;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function clearLog() {
+    document.getElementById('log').innerHTML = '';
+    results = []; success = 0; failed = 0; times = [];
+    updateStats();
+    document.getElementById('results-card').style.display = 'none';
+    document.getElementById('progress').style.width = '0%';
+  }
+
+  function updateStats() {
+    document.getElementById('s-success').textContent = success;
+    document.getElementById('s-failed').textContent = failed;
+    document.getElementById('s-avg').textContent = times.length ? Math.round(times.reduce((a,b)=>a+b,0)/times.length) + 'ms' : '—';
+    document.getElementById('s-max').textContent = times.length ? Math.max(...times) + 'ms' : '—';
+  }
+
+  async function api(path, options = {}) {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, { headers, ...options });
+    const text = await res.text();
+    if (!res.ok) throw new Error(text);
+    return text ? JSON.parse(text) : null;
+  }
+
+  async function simulateVote(playerName, vote) {
+    const start = Date.now();
+    try {
+      // Check if vote exists
+      const existing = await api('votes?name=eq.' + encodeURIComponent(playerName));
+      if (existing && existing.length > 0) {
+        await api('votes?id=eq.' + existing[0].id, {
+          method: 'PATCH',
+          body: JSON.stringify({ vote, updated_at: new Date().toISOString() })
+        });
+      } else {
+        await api('votes', {
+          method: 'POST',
+          body: JSON.stringify({ name: playerName, vote, created_at: new Date().toISOString() })
+        });
+      }
+      const ms = Date.now() - start;
+      return { player: playerName, vote, ms, ok: true };
+    } catch(e) {
+      const ms = Date.now() - start;
+      return { player: playerName, vote, ms, ok: false, error: e.message };
+    }
+  }
+
+  async function runTest() {
+    const n = Math.min(parseInt(document.getElementById('concurrent').value) || 10, 30);
+    const spread = parseInt(document.getElementById('spread').value) || 0;
+    const choice = document.getElementById('vote-choice').value;
+
+    logEl = document.getElementById('log');
+    results = []; success = 0; failed = 0; times = [];
+    updateStats();
+    document.getElementById('progress').style.width = '0%';
+    document.getElementById('results-card').style.display = 'none';
+
+    const btn = document.getElementById('run-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Running...';
+
+    log(`Starting test: ${n} concurrent voters, spread: ${spread}ms`, 'info');
+    log(`Vote choice: ${choice}`, 'info');
+
+    const players = TEST_PLAYERS.slice(0, n);
+    let completed = 0;
+
+    // Fire all votes with optional random delay spread
+    const promises = players.map((name, i) => {
+      const delay = spread > 0 ? Math.random() * spread : 0;
+      const vote = choice === 'random' ? (Math.random() > 0.3 ? 'In' : 'Out') : choice;
+      return new Promise(resolve => {
+        setTimeout(async () => {
+          log(`→ ${name} voting ${vote}...`, 'info');
+          const result = await simulateVote(name, vote);
+          completed++;
+          document.getElementById('progress').style.width = Math.round((completed / n) * 100) + '%';
+          if (result.ok) {
+            success++;
+            times.push(result.ms);
+            const speed = result.ms > 2000 ? 'warn' : 'ok';
+            log(`✅ ${name} voted ${vote} in ${result.ms}ms`, speed);
+          } else {
+            failed++;
+            log(`❌ ${name} FAILED: ${result.error}`, 'err');
+          }
+          updateStats();
+          results.push(result);
+          resolve(result);
+        }, delay);
+      });
+    });
+
+    await Promise.all(promises);
+
+    log(`Test complete: ${success} succeeded, ${failed} failed`, success === n ? 'ok' : 'warn');
+
+    // Check final state in DB
+    try {
+      const finalVotes = await api('votes?name=like.Test_*&order=created_at');
+      const inCount = (finalVotes || []).filter(v => v.vote === 'In').length;
+      const outCount = (finalVotes || []).filter(v => v.vote === 'Out').length;
+      log(`DB state: ${inCount} In, ${outCount} Out (${(finalVotes||[]).length} total test votes)`, 'info');
+
+      // Check for duplicates
+      const names = (finalVotes || []).map(v => v.name);
+      const dupes = names.filter((n, i) => names.indexOf(n) !== i);
+      if (dupes.length > 0) {
+        log(`⚠️ Duplicate votes detected for: ${dupes.join(', ')}`, 'err');
+      } else {
+        log(`✅ No duplicate votes detected`, 'ok');
+      }
+    } catch(e) {
+      log(`Could not verify DB state: ${e.message}`, 'warn');
+    }
+
+    showResults();
+    btn.disabled = false;
+    btn.textContent = '▶ Run Test';
+  }
+
+  function showResults() {
+    const card = document.getElementById('results-card');
+    card.style.display = 'block';
+    const list = document.getElementById('results-list');
+    const sorted = [...results].sort((a, b) => b.ms - a.ms);
+    list.innerHTML = sorted.map(r => `
+      <div class="result-row">
+        <span>${r.player} → <strong>${r.vote}</strong></span>
+        <span style="display:flex; gap:6px; align-items:center;">
+          <span style="font-size:12px; color:#888;">${r.ms}ms</span>
+          <span class="badge ${r.ok ? (r.ms > 2000 ? 'badge-slow' : 'badge-ok') : 'badge-err'}">
+            ${r.ok ? (r.ms > 2000 ? 'Slow' : 'OK') : 'Failed'}
+          </span>
+        </span>
+      </div>`).join('');
+
+    const avg = times.length ? Math.round(times.reduce((a,b)=>a+b,0)/times.length) : 0;
+    const max = times.length ? Math.max(...times) : 0;
+    const slow = times.filter(t => t > 2000).length;
+    document.getElementById('summary').innerHTML = `
+      <strong>Summary:</strong> ${success}/${results.length} succeeded · 
+      Avg response: ${avg}ms · Max: ${max}ms · 
+      Slow (>2s): ${slow} · 
+      ${failed > 0 ? `<span style="color:#E24B4A">${failed} failures detected ⚠️</span>` : '<span style="color:#1D9E75">No failures ✅</span>'}
+    `;
+  }
+
+  async function clearVotesAndLog() {
+    log('Clearing test votes...', 'info');
+    try {
+      // Delete all test votes
+      const testVotes = await api('votes?name=like.Test_*');
+      if (testVotes && testVotes.length > 0) {
+        for (const v of testVotes) {
+          await api('votes?id=eq.' + v.id, { method: 'DELETE' });
+        }
+        log(`Cleared ${testVotes.length} test votes from DB`, 'ok');
+      } else {
+        log('No test votes found in DB', 'info');
+      }
+    } catch(e) {
+      log('Error clearing votes: ' + e.message, 'err');
+    }
+  }
+
+  // Init log
+  logEl = document.getElementById('log');
+  log('Load test tool ready. Configure settings and click Run Test.', 'info');
+  log('Test votes use names starting with "Test_" and will not affect real players.', 'info');
+</script>
+</body>
+</html>
