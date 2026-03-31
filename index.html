@@ -896,11 +896,16 @@
     btn.textContent = 'Submitting...'; btn.disabled = true;
     infoEl.textContent = '';
 
-    // Check voting window
+    // Double-check voting window at submit time (catches stale UI)
     const votingStatus = getVotingStatus();
     if (!votingStatus.open) {
       infoEl.textContent = votingStatus.reason;
-      btn.textContent = 'Submit vote'; btn.disabled = false;
+      // Re-lock UI immediately
+      document.getElementById('btn-in').disabled = true;
+      document.getElementById('btn-out').disabled = true;
+      document.getElementById('btn-in').style.opacity = '0.4';
+      document.getElementById('btn-out').style.opacity = '0.4';
+      btn.textContent = 'Submit vote'; btn.disabled = true; btn.style.opacity = '0.4';
       return;
     }
 
@@ -1025,6 +1030,32 @@
   }
 
   setInterval(loadVotes, 30000);
+
+  // Check voting window every 30 seconds and update UI in real time
+  setInterval(() => {
+    if (currentUser) refreshPlayerCard();
+  }, 30000);
+
+  // Check every 10 seconds for when voting opens/closes
+  setInterval(() => {
+    if (!currentUser) return;
+    const vs = getVotingStatus();
+    const submitBtn = document.getElementById('submit-btn');
+    const btnIn = document.getElementById('btn-in');
+    const btnOut = document.getElementById('btn-out');
+    const banner = document.getElementById('voting-status-banner');
+    if (!vs.open) {
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.4'; }
+      if (btnIn) { btnIn.disabled = true; btnIn.style.opacity = '0.4'; btnIn.style.cursor = 'not-allowed'; }
+      if (btnOut) { btnOut.disabled = true; btnOut.style.opacity = '0.4'; btnOut.style.cursor = 'not-allowed'; }
+      if (banner) { banner.style.display = 'block'; banner.style.background = '#FAEEDA'; banner.style.color = '#633806'; banner.textContent = '🔒 ' + vs.reason; }
+    } else {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1'; }
+      if (btnIn) { btnIn.disabled = false; btnIn.style.opacity = '1'; btnIn.style.cursor = 'pointer'; }
+      if (btnOut) { btnOut.disabled = false; btnOut.style.opacity = '1'; btnOut.style.cursor = 'pointer'; }
+      if (banner) { banner.style.display = 'block'; banner.style.background = '#E1F5EE'; banner.style.color = '#0F6E56'; banner.textContent = '✅ Voting is open!'; }
+    }
+  }, 10000);
 
   const VAPID_PUBLIC = 'BIE46jtCeVR8kVFumGJkWLt8JI-eUYfqGSD7FmWmDfIS0W0Lf-aKtMnSwbkfibxBj8CptIlAsFy6sNzWDI10O6A';
 
