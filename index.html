@@ -580,9 +580,9 @@
     if (!game) return;
     document.getElementById('p-title').textContent = game.title || '—';
     try {
-      const d = new Date(game.date + 'T' + game.time);
+      const d = new Date(game.date + 'T' + game.time + ':00Z');
       document.getElementById('p-datetime').textContent =
-        d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + formatTime(game.time);
+        d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Chicago' }) + ' · ' + formatTime(game.time);
     } catch(e) {
       document.getElementById('p-datetime').textContent = (game.date || '') + ' · ' + formatTime(game.time);
     }
@@ -713,10 +713,11 @@
 
   function isGameDay() {
     if (!game || !game.date) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const gameDate = new Date(game.date + 'T00:00:00');
-    return today >= gameDate;
+    const now = new Date();
+    const todayCT = now.toLocaleDateString('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const [m, d, y] = todayCT.split('/');
+    const todayStr = y + '-' + m + '-' + d;
+    return todayStr >= game.date;
   }
 
   function formatTimestamp(ts) {
