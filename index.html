@@ -673,21 +673,35 @@
     }
     document.getElementById('p-location').textContent = game.location || '—';
 
-    // Show voting status banner
+    // Show voting status banner and lock/unlock UI
     const vs = getVotingStatus();
     const banner = document.getElementById('voting-status-banner');
-    if (banner) {
-      if (!vs.open) {
+    const submitBtn = document.getElementById('submit-btn');
+    const btnIn = document.getElementById('btn-in');
+    const btnOut = document.getElementById('btn-out');
+
+    if (!vs.open) {
+      // Lock UI
+      if (banner) {
         banner.style.display = 'block';
         banner.style.background = '#FAEEDA';
         banner.style.color = '#633806';
         banner.textContent = '🔒 ' + vs.reason;
-      } else {
+      }
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.4'; }
+      if (btnIn) { btnIn.disabled = true; btnIn.style.opacity = '0.4'; btnIn.style.cursor = 'not-allowed'; }
+      if (btnOut) { btnOut.disabled = true; btnOut.style.opacity = '0.4'; btnOut.style.cursor = 'not-allowed'; }
+    } else {
+      // Unlock UI
+      if (banner) {
         banner.style.display = 'block';
         banner.style.background = '#E1F5EE';
         banner.style.color = '#0F6E56';
         banner.textContent = '✅ Voting is open!';
       }
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1'; }
+      if (btnIn) { btnIn.disabled = false; btnIn.style.opacity = '1'; btnIn.style.cursor = 'pointer'; }
+      if (btnOut) { btnOut.disabled = false; btnOut.style.opacity = '1'; btnOut.style.cursor = 'pointer'; }
     }
 
     const inC = votes.filter(v => v.vote === 'In').length;
