@@ -131,6 +131,14 @@
         <div class="error" id="login-error">Incorrect username or password.</div>
         <button class="btn btn-primary" onclick="doLogin()" style="margin-top:8px;">Sign in</button>
         <div class="auth-toggle">New player? <a onclick="showRegister()">Create account</a></div>
+        <div id="admin-code-wrap" style="margin-top:20px; border-top: 1px solid #eee; padding-top:16px;">
+          <div class="field" style="margin-bottom:8px;">
+            <label style="font-size:12px; color:#ccc;">Admin access code</label>
+            <input type="password" id="admin-code-input" placeholder="Enter code" style="font-size:14px;" />
+          </div>
+          <button class="btn btn-ghost" style="font-size:13px; padding:9px;" onclick="unlockAdmin()">Unlock Admin</button>
+          <div class="error" id="admin-code-error" style="margin-top:6px;">Incorrect code.</div>
+        </div>
       </div>
 
       <!-- REGISTER FORM -->
@@ -429,7 +437,10 @@
     document.getElementById('user-bar-name').textContent = '👤 ' + fullName.trim();
     document.getElementById('p-voting-as').value = fullName.trim();
 
-    const isAdmin = window.location.search.includes('admin=730cutoffelse%243fine') || window.location.search.includes('admin=730cutoffelse$3fine') || window.location.href.includes('Football-7pm?');
+    const isAdmin = window.location.search.includes('admin=730cutoffelse%243fine') || 
+                   window.location.search.includes('admin=730cutoffelse$3fine') || 
+                   window.location.href.includes('Football-7pm?') ||
+                   sessionStorage.getItem('adminUnlocked') === 'true';
     if (isAdmin) document.getElementById('admin-tab').style.display = '';
 
     loadAll();
@@ -440,6 +451,23 @@
     const saved = sessionStorage.getItem('currentUser');
     if (saved) { currentUser = JSON.parse(saved); onLoggedIn(); }
   });
+
+  function unlockAdmin() {
+    const code = document.getElementById('admin-code-input').value.trim();
+    const err = document.getElementById('admin-code-error');
+    err.classList.remove('show');
+    if (code !== 'Nawab732') {
+      err.classList.add('show');
+      return;
+    }
+    sessionStorage.setItem('adminUnlocked', 'true');
+    document.getElementById('admin-tab').style.display = '';
+    document.getElementById('admin-code-input').value = '';
+    document.getElementById('admin-code-wrap').innerHTML = '<p style="font-size:13px; color:#1D9E75; text-align:center;">✅ Admin unlocked!</p>';
+    setTimeout(() => {
+      document.getElementById('admin-code-wrap').style.display = 'none';
+    }, 1500);
+  }
 
   async function loadAll() {
     await Promise.all([loadLocations(), loadVotes()]);
@@ -693,7 +721,9 @@
 
   function formatTimestamp(ts) {
     if (!ts) return '';
-    const d = new Date(ts);
+    // Append Z to treat as UTC if no timezone info present
+    const utcTs = ts.endsWith('Z') || ts.includes('+') ? ts : ts + 'Z';
+    const d = new Date(utcTs);
     return d.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
