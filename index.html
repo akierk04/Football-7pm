@@ -130,7 +130,7 @@
         </div>
         <div class="error" id="login-error">Incorrect username or password.</div>
         <button class="btn btn-primary" onclick="doLogin()" style="margin-top:8px;">Sign in</button>
-        <div class="auth-toggle">New player? <a onclick="showRegister()">Create account</a></div>
+        <div class="auth-toggle">New player? <a onclick="showRegister()">Create account</a> &nbsp;·&nbsp; <a onclick="showReset()">Forgot password?</a></div>
         <div id="admin-code-wrap" style="margin-top:20px; border-top: 1px solid #eee; padding-top:16px;">
           <div class="field" style="margin-bottom:8px;">
             <label style="font-size:12px; color:#ccc;">Admin access code</label>
@@ -139,6 +139,30 @@
           <button class="btn btn-ghost" style="font-size:13px; padding:9px;" onclick="unlockAdmin()">Unlock Admin</button>
           <div class="error" id="admin-code-error" style="margin-top:6px;">Incorrect code.</div>
         </div>
+      </div>
+
+      <!-- RESET PASSWORD FORM -->
+      <div id="reset-form" style="display:none;">
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="reset-username" placeholder="Your username" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label>What city were you born in?</label>
+          <input type="text" id="reset-security" placeholder="Your answer" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label>New password</label>
+          <input type="password" id="reset-newpwd" placeholder="New password" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <label>Confirm new password</label>
+          <input type="password" id="reset-confirmpwd" placeholder="Repeat new password" autocomplete="new-password" />
+        </div>
+        <div class="error" id="reset-error">Please fill in all fields.</div>
+        <div class="success" id="reset-success">Password updated! Please sign in.</div>
+        <button class="btn btn-primary" onclick="doReset()" style="margin-top:8px;">Reset password</button>
+        <div class="auth-toggle">Remembered it? <a onclick="showLogin()">Sign in</a></div>
       </div>
 
       <!-- REGISTER FORM -->
@@ -164,6 +188,10 @@
         <div class="field">
           <label>Confirm password</label>
           <input type="password" id="reg-confirm" placeholder="Repeat password" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <label>Security question: What city were you born in?</label>
+          <input type="text" id="reg-security" placeholder="Your answer" autocomplete="off" />
         </div>
         <div class="error" id="reg-error">Please fill in all fields.</div>
         <button class="btn btn-primary" onclick="doRegister()" style="margin-top:8px;">Create account</button>
@@ -361,8 +389,59 @@
 
   function showLogin() {
     document.getElementById('register-form').style.display = 'none';
+    document.getElementById('reset-form').style.display = 'none';
     document.getElementById('login-form').style.display = 'block';
     document.getElementById('auth-sub').textContent = 'Sign in to vote for the next game';
+  }
+
+  function showReset() {
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('register-form').style.display = 'none';
+    document.getElementById('reset-form').style.display = 'block';
+    document.getElementById('auth-sub').textContent = 'Reset your password';
+  }
+
+  async function doReset() {
+    const username = document.getElementById('reset-username').value.trim();
+    const security = document.getElementById('reset-security').value.trim().toLowerCase();
+    const newpwd = document.getElementById('reset-newpwd').value;
+    const confirmpwd = document.getElementById('reset-confirmpwd').value;
+    const err = document.getElementById('reset-error');
+    const succ = document.getElementById('reset-success');
+    err.classList.remove('show'); succ.style.display = 'none';
+
+    if (!username || !security || !newpwd || !confirmpwd) {
+      err.textContent = 'Please fill in all fields.'; err.classList.add('show'); return;
+    }
+    if (newpwd !== confirmpwd) {
+      err.textContent = 'Passwords do not match.'; err.classList.add('show'); return;
+    }
+    if (newpwd.length < 6) {
+      err.textContent = 'Password must be at least 6 characters.'; err.classList.add('show'); return;
+    }
+    try {
+      // Find player by username
+      const data = await api('players?username=eq.' + encodeURIComponent(username) + '&active=eq.true');
+      if (!data || data.length === 0) {
+        err.textContent = 'Username not found.'; err.classList.add('show'); return;
+      }
+      const player = data[0];
+      // Check security answer (case insensitive)
+      const storedAnswer = (player.security_answer || '').toLowerCase().trim();
+      if (storedAnswer !== security) {
+        err.textContent = 'Security answer is incorrect.'; err.classList.add('show'); return;
+      }
+      // Update password
+      const hash = await hashPassword(newpwd);
+      await api('players?id=eq.' + player.id, {
+        method: 'PATCH',
+        body: JSON.stringify({ password_hash: hash })
+      });
+      succ.style.display = 'block';
+      setTimeout(() => { showLogin(); }, 2000);
+    } catch(e) {
+      err.textContent = 'Error resetting password. Please try again.'; err.classList.add('show');
+    }
   }
 
   async function doLogin() {
@@ -407,11 +486,15 @@
       if (existing && existing.length > 0) {
         err.textContent = 'Username already taken. Please choose another.'; err.classList.add('show'); return;
       }
+      const security = document.getElementById('reg-security').value.trim().toLowerCase();
+      if (!security) {
+        err.textContent = 'Please answer the security question.'; err.classList.add('show'); return;
+      }
       const hash = await hashPassword(password);
       const fullName = first + ' ' + last;
       const data = await api('players', {
         method: 'POST',
-        body: JSON.stringify({ first_name: first, last_name: last, name: fullName, username, password_hash: hash, active: true })
+        body: JSON.stringify({ first_name: first, last_name: last, name: fullName, username, password_hash: hash, security_answer: security, active: true })
       });
       if (data && data.length > 0) {
         currentUser = data[0];
