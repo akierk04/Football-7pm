@@ -4,6 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Football @ 7pm</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#111111" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Football 7pm" />
+<link rel="apple-touch-icon" href="icon-192.png" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #111; min-height: 100vh; }
@@ -14,6 +20,14 @@
 
   .screen { display: none; padding: 16px; max-width: 480px; margin: 0 auto; }
   .screen.active { display: block; }
+
+  .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: #f5f5f0; }
+  .auth-card { background: #fff; border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 420px; border: 1px solid #e5e5e0; }
+  .auth-logo { font-size: 32px; text-align: center; margin-bottom: 6px; }
+  .auth-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+  .auth-sub { font-size: 14px; color: #888; text-align: center; margin-bottom: 24px; }
+  .auth-toggle { text-align: center; font-size: 14px; color: #888; margin-top: 16px; }
+  .auth-toggle a { color: #111; font-weight: 600; cursor: pointer; text-decoration: underline; }
 
   .game-card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 20px; border: 1px solid #e5e5e0; }
   .game-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
@@ -34,6 +48,8 @@
   }
   .field input { background-image: none; }
   .field select:focus, .field input:focus { outline: none; border-color: #111; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .field-row .field { margin-bottom: 0; }
 
   .vote-btns { display: flex; gap: 10px; margin-bottom: 6px; }
   .vote-btn { flex: 1; padding: 13px; border-radius: 10px; border: 1px solid #ddd; font-size: 16px; font-weight: 600; cursor: pointer; background: #fff; color: #111; font-family: inherit; transition: all 0.15s; }
@@ -43,9 +59,11 @@
   .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; margin-bottom: 4px; }
   .btn-primary { background: #111; color: #fff; }
   .btn-danger { background: #E24B4A; color: #fff; }
+  .btn-ghost { background: none; border: 1px solid #ddd; color: #111; }
   .btn-sm { padding: 7px 14px; font-size: 13px; width: auto; border-radius: 8px; }
 
   .error { font-size: 13px; color: #E24B4A; margin-top: 5px; display: none; }
+  .error.show { display: block; }
   .success { font-size: 13px; color: #1D9E75; margin-top: 8px; text-align: center; display: none; }
   .info { font-size: 13px; color: #888; margin-top: 8px; text-align: center; }
 
@@ -82,147 +100,217 @@
   .sub-tab { padding: 7px 16px; border-radius: 99px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid #ddd; background: #fff; color: #888; font-family: inherit; }
   .sub-tab.active { background: #111; color: #fff; border-color: #111; }
 
+  .user-bar { display: flex; align-items: center; justify-content: space-between; background: #fff; border-bottom: 1px solid #e5e5e0; padding: 10px 16px; font-size: 14px; }
+  .user-bar-name { font-weight: 600; }
+  .logout-btn { font-size: 13px; color: #888; background: none; border: none; cursor: pointer; font-family: inherit; }
+
   .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #111; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<div class="tab-bar">
-  <button class="tab active" onclick="switchTab('player')">⚽ Player</button>
-  <button class="tab" id="admin-tab" onclick="switchTab('admin')" style="display:none;">🛠 Admin</button>
-</div>
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo">⚽</div>
+      <div class="auth-title">Football @ 7pm</div>
+      <div class="auth-sub" id="auth-sub">Sign in to vote for the next game</div>
 
-<!-- PLAYER SCREEN -->
-<div id="tab-player" class="screen active">
-  <div class="game-card">
-    <div class="game-title" id="p-title"><span class="spinner"></span> Loading...</div>
-    <div class="game-meta">
-      <div id="p-datetime">—</div>
-      <div id="p-location">—</div>
+      <!-- LOGIN FORM -->
+      <div id="login-form">
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="login-username" placeholder="Your username" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password" />
+        </div>
+        <div class="error" id="login-error">Incorrect username or password.</div>
+        <button class="btn btn-primary" onclick="doLogin()" style="margin-top:8px;">Sign in</button>
+        <div class="auth-toggle">New player? <a onclick="showRegister()">Create account</a></div>
+      </div>
+
+      <!-- REGISTER FORM -->
+      <div id="register-form" style="display:none;">
+        <div class="field-row">
+          <div class="field">
+            <label>First name</label>
+            <input type="text" id="reg-first" placeholder="First name" />
+          </div>
+          <div class="field">
+            <label>Last name</label>
+            <input type="text" id="reg-last" placeholder="Last name" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="reg-username" placeholder="Choose a username" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="reg-password" placeholder="Choose a password" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <label>Confirm password</label>
+          <input type="password" id="reg-confirm" placeholder="Repeat password" autocomplete="new-password" />
+        </div>
+        <div class="error" id="reg-error">Please fill in all fields.</div>
+        <button class="btn btn-primary" onclick="doRegister()" style="margin-top:8px;">Create account</button>
+        <div class="auth-toggle">Already have an account? <a onclick="showLogin()">Sign in</a></div>
+      </div>
     </div>
-    <div class="cap-row">
-      <span>Players confirmed</span>
-      <span id="p-cap-count">— / —</span>
-    </div>
-    <div class="cap-bar"><div class="cap-fill" id="p-cap-bar" style="width:0%"></div></div>
-  </div>
-
-  <div class="field">
-    <label>Your name</label>
-    <select id="player-name">
-      <option value="">— Select your name —</option>
-    </select>
-    <div class="error" id="err-name">Please select your name.</div>
-  </div>
-
-  <div class="field">
-    <label>Are you in for this game?</label>
-    <div class="vote-btns">
-      <button class="vote-btn in" id="btn-in" onclick="selectVote('In')">✅ In</button>
-      <button class="vote-btn out" id="btn-out" onclick="selectVote('Out')">❌ Out</button>
-    </div>
-    <div class="error" id="err-vote">Please select In or Out.</div>
-  </div>
-
-  <button class="btn btn-primary" id="submit-btn" onclick="submitVote()">Submit vote</button>
-  <div class="success" id="vote-success">Vote recorded! 🎉</div>
-  <div class="info" id="vote-info"></div>
-
-  <hr />
-  <div class="section-title">Who's in & out</div>
-  <div class="stats-row">
-    <div class="stat-card"><div class="stat-label">In ✅</div><div class="stat-value stat-in" id="p-in-count">0</div></div>
-    <div class="stat-card"><div class="stat-label">Out ❌</div><div class="stat-value stat-out" id="p-out-count">0</div></div>
-  </div>
-  <div style="margin-bottom:10px;">
-    <div class="section-title" style="margin-bottom:8px;">✅ In</div>
-    <div id="p-in-list"><div class="empty-state">No one yet</div></div>
-  </div>
-  <div style="margin-bottom:20px;">
-    <div class="section-title" style="margin-bottom:8px;">❌ Out</div>
-    <div id="p-out-list"><div class="empty-state">No one yet</div></div>
   </div>
 </div>
 
-<!-- ADMIN SCREEN -->
-<div id="tab-admin" class="screen">
-  <div class="sub-tabs">
-    <button class="sub-tab active" onclick="switchSubTab('game')">Game</button>
-    <button class="sub-tab" onclick="switchSubTab('votes')">Votes</button>
-    <button class="sub-tab" onclick="switchSubTab('players')">Players</button>
-    <button class="sub-tab" onclick="switchSubTab('locations')">Locations</button>
+<!-- MAIN APP (hidden until logged in) -->
+<div id="main-app" style="display:none;">
+  <div class="user-bar">
+    <span class="user-bar-name" id="user-bar-name">👤 —</span>
+    <button class="logout-btn" onclick="doLogout()">Sign out</button>
   </div>
 
-  <!-- GAME SUB-TAB -->
-  <div id="subtab-game" class="subtab active">
-    <div class="section-title">Game details</div>
-    <div class="field">
-      <label>Location</label>
-      <select id="a-location" onchange="updateTitleFromLocation()">
-        <option value="">— Select location —</option>
-      </select>
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('player')">⚽ Player</button>
+    <button class="tab" id="admin-tab" onclick="switchTab('admin')" style="display:none;">🛠 Admin</button>
+  </div>
+
+  <!-- PLAYER SCREEN -->
+  <div id="tab-player" class="screen active">
+    <div class="game-card">
+      <div class="game-title" id="p-title"><span class="spinner"></span> Loading...</div>
+      <div class="game-meta">
+        <div id="p-datetime">—</div>
+        <div id="p-location">—</div>
+      </div>
+      <div class="cap-row">
+        <span>Players confirmed</span>
+        <span id="p-cap-count">— / —</span>
+      </div>
+      <div class="cap-bar"><div class="cap-fill" id="p-cap-bar" style="width:0%"></div></div>
     </div>
+
     <div class="field">
-      <label>Title (auto-set)</label>
-      <input type="text" id="a-title" readonly style="background:#f5f5f0; color:#888; background-image:none;" />
+      <label>Voting as</label>
+      <input type="text" id="p-voting-as" readonly style="background:#f5f5f0; color:#888;" />
     </div>
+
     <div class="field">
-      <label>Date</label>
-      <input type="date" id="a-date" style="background-image:none;" />
+      <label>Are you in for this game?</label>
+      <div class="vote-btns">
+        <button class="vote-btn in" id="btn-in" onclick="selectVote('In')">✅ In</button>
+        <button class="vote-btn out" id="btn-out" onclick="selectVote('Out')">❌ Out</button>
+      </div>
+      <div class="error" id="err-vote">Please select In or Out.</div>
     </div>
-    <div class="field">
-      <label>Time</label>
-      <input type="time" id="a-time" value="19:00" style="background-image:none;" />
-    </div>
-    <div class="field">
-      <label>Max players</label>
-      <input type="number" id="a-max" value="14" min="1" max="99" style="background-image:none;" />
-    </div>
-    <button class="btn btn-primary" onclick="saveGame()">Save details</button>
-    <div class="success" id="save-success">Details saved!</div>
+
+    <button class="btn btn-primary" id="submit-btn" onclick="submitVote()">Submit vote</button>
+    <div class="success" id="vote-success">Vote recorded! 🎉</div>
+    <div class="info" id="vote-info"></div>
 
     <hr />
-    <div class="section-title">Share</div>
-    <div class="share-box">
-      <span class="share-url" id="share-url">https://akierk04.github.io/Football-7pm</span>
-      <button class="copy-btn" onclick="copyLink()">Copy</button>
-    </div>
-  </div>
-
-  <!-- VOTES SUB-TAB -->
-  <div id="subtab-votes" class="subtab" style="display:none;">
+    <div class="section-title">Who's in & out</div>
     <div class="stats-row">
-      <div class="stat-card"><div class="stat-label">In ✅</div><div class="stat-value stat-in" id="a-in">—</div></div>
-      <div class="stat-card"><div class="stat-label">Out ❌</div><div class="stat-value stat-out" id="a-out">—</div></div>
+      <div class="stat-card"><div class="stat-label">Confirmed ✅</div><div class="stat-value stat-in" id="p-in-count">0</div></div>
+      <div class="stat-card"><div class="stat-label">Out ❌</div><div class="stat-value stat-out" id="p-out-count">0</div></div>
     </div>
-    <div id="a-player-list"><div class="empty-state"><span class="spinner"></span> Loading...</div></div>
-    <hr />
-    <button class="btn btn-danger" onclick="clearVotes()">Clear all votes</button>
-    <div class="success" id="clear-success">All votes cleared!</div>
+    <div style="margin-bottom:10px;">
+      <div class="section-title" style="margin-bottom:8px;">✅ Confirmed (max 22)</div>
+      <div id="p-in-list"><div class="empty-state">No one yet</div></div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div class="section-title" style="margin-bottom:8px;">⏳ Waitlist</div>
+      <div id="p-waitlist"><div class="empty-state">No one waiting</div></div>
+    </div>
+    <div style="margin-bottom:20px;">
+      <div class="section-title" style="margin-bottom:8px;">❌ Out</div>
+      <div id="p-out-list"><div class="empty-state">No one yet</div></div>
+    </div>
   </div>
 
-  <!-- PLAYERS SUB-TAB -->
-  <div id="subtab-players" class="subtab" style="display:none;">
-    <div class="section-title">Players</div>
-    <div class="add-row">
-      <input type="text" id="new-player-name" placeholder="Add new player..." />
-      <button class="btn btn-primary btn-sm" onclick="addPlayer()">Add</button>
+  <!-- ADMIN SCREEN -->
+  <div id="tab-admin" class="screen">
+    <div class="sub-tabs">
+      <button class="sub-tab active" onclick="switchSubTab('game', event)">Game</button>
+      <button class="sub-tab" onclick="switchSubTab('votes', event)">Votes</button>
+      <button class="sub-tab" onclick="switchSubTab('players', event)">Players</button>
+      <button class="sub-tab" onclick="switchSubTab('locations', event)">Locations</button>
     </div>
-    <div id="players-list"><div class="empty-state"><span class="spinner"></span> Loading...</div></div>
-    <div class="success" id="player-success">Saved!</div>
-  </div>
 
-  <!-- LOCATIONS SUB-TAB -->
-  <div id="subtab-locations" class="subtab" style="display:none;">
-    <div class="section-title">Locations</div>
-    <div class="add-row">
-      <input type="text" id="new-loc-name" placeholder="Location name..." style="flex:1.2;" />
-      <input type="text" id="new-loc-day" placeholder="Day & time..." style="flex:1;" />
-      <button class="btn btn-primary btn-sm" onclick="addLocation()">Add</button>
+    <!-- GAME SUB-TAB -->
+    <div id="subtab-game" class="subtab">
+      <div class="section-title">Game details</div>
+      <div class="field">
+        <label>Location</label>
+        <select id="a-location" onchange="updateTitleFromLocation()">
+          <option value="">— Select location —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Title (auto-set)</label>
+        <input type="text" id="a-title" readonly style="background:#f5f5f0; color:#888; background-image:none;" />
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="a-date" style="background-image:none;" />
+      </div>
+      <div class="field">
+        <label>Time</label>
+        <input type="time" id="a-time" value="19:00" style="background-image:none;" />
+      </div>
+      <div class="field">
+        <label>Max players</label>
+        <input type="number" id="a-max" value="14" min="1" max="99" style="background-image:none;" />
+      </div>
+      <button class="btn btn-primary" onclick="saveGame()">Save details</button>
+      <div class="success" id="save-success">Details saved!</div>
+      <hr />
+      <div class="section-title">Share</div>
+      <div class="share-box">
+        <span class="share-url" id="share-url">https://akierk04.github.io/Football-7pm</span>
+        <button class="copy-btn" onclick="copyLink()">Copy</button>
+      </div>
     </div>
-    <div id="locations-list"><div class="empty-state"><span class="spinner"></span> Loading...</div></div>
-    <div class="success" id="location-success">Saved!</div>
+
+    <!-- VOTES SUB-TAB -->
+    <div id="subtab-votes" class="subtab" style="display:none;">
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">In ✅</div><div class="stat-value stat-in" id="a-in">—</div></div>
+        <div class="stat-card"><div class="stat-label">Out ❌</div><div class="stat-value stat-out" id="a-out">—</div></div>
+      </div>
+      <div id="a-player-list"><div class="empty-state"><span class="spinner"></span> Loading...</div></div>
+      <div style="margin-top:12px;">
+        <div class="section-title" style="margin-bottom:8px;">⏳ Waitlist</div>
+        <div id="a-waitlist"><div class="empty-state">No one waiting</div></div>
+      </div>
+      <div style="margin-top:12px;">
+        <div class="section-title" style="margin-bottom:8px;">❌ Out</div>
+        <div id="a-out-list"><div class="empty-state">No one yet</div></div>
+      </div>
+      <hr />
+      <button class="btn btn-danger" onclick="clearVotes()">Clear all votes</button>
+      <div class="success" id="clear-success">All votes cleared!</div>
+    </div>
+
+    <!-- PLAYERS SUB-TAB -->
+    <div id="subtab-players" class="subtab" style="display:none;">
+      <div class="section-title">Registered players</div>
+      <div id="players-list"><div class="empty-state"><span class="spinner"></span> Loading...</div></div>
+    </div>
+
+    <!-- LOCATIONS SUB-TAB -->
+    <div id="subtab-locations" class="subtab" style="display:none;">
+      <div class="section-title">Locations</div>
+      <div class="add-row">
+        <input type="text" id="new-loc-name" placeholder="Location name..." style="flex:1.2;" />
+        <input type="text" id="new-loc-day" placeholder="Day & time..." style="flex:1;" />
+        <button class="btn btn-primary btn-sm" onclick="addLocation()">Add</button>
+      </div>
+      <div id="locations-list"><div class="empty-state"><span class="spinner"></span> Loading...</div></div>
+      <div class="success" id="location-success">Saved!</div>
+    </div>
   </div>
 </div>
 
@@ -238,6 +326,14 @@
   };
 
   let game = null, votes = [], players = [], locations = [], selectedVote = null;
+  let currentUser = null;
+
+  // Simple hash (SHA-256 via Web Crypto)
+  async function hashPassword(password) {
+    const enc = new TextEncoder();
+    const buf = await crypto.subtle.digest('SHA-256', enc.encode(password));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
 
   async function api(path, options = {}) {
     const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, { headers, ...options });
@@ -246,29 +342,120 @@
     return text ? JSON.parse(text) : null;
   }
 
+  // AUTH
+  function showRegister() {
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('register-form').style.display = 'block';
+    document.getElementById('auth-sub').textContent = 'Create your account to get started';
+  }
+
+  function showLogin() {
+    document.getElementById('register-form').style.display = 'none';
+    document.getElementById('login-form').style.display = 'block';
+    document.getElementById('auth-sub').textContent = 'Sign in to vote for the next game';
+  }
+
+  async function doLogin() {
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    const err = document.getElementById('login-error');
+    err.classList.remove('show');
+    if (!username || !password) { err.textContent = 'Please enter username and password.'; err.classList.add('show'); return; }
+    try {
+      const hash = await hashPassword(password);
+      const data = await api('players?username=eq.' + encodeURIComponent(username) + '&password_hash=eq.' + hash + '&active=eq.true');
+      if (!data || data.length === 0) { err.textContent = 'Incorrect username or password.'; err.classList.add('show'); return; }
+      currentUser = data[0];
+      sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+      onLoggedIn();
+    } catch(e) { err.textContent = 'Error signing in. Please try again.'; err.classList.add('show'); }
+  }
+
+  async function doRegister() {
+    const first = document.getElementById('reg-first').value.trim();
+    const last = document.getElementById('reg-last').value.trim();
+    const username = document.getElementById('reg-username').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const confirm = document.getElementById('reg-confirm').value;
+    const err = document.getElementById('reg-error');
+    err.classList.remove('show');
+
+    if (!first || !last || !username || !password || !confirm) {
+      err.textContent = 'Please fill in all fields.'; err.classList.add('show'); return;
+    }
+    if (password !== confirm) {
+      err.textContent = 'Passwords do not match.'; err.classList.add('show'); return;
+    }
+    if (password.length < 6) {
+      err.textContent = 'Password must be at least 6 characters.'; err.classList.add('show'); return;
+    }
+
+    try {
+      // Check username taken
+      const existing = await api('players?username=eq.' + encodeURIComponent(username));
+      if (existing && existing.length > 0) {
+        err.textContent = 'Username already taken. Please choose another.'; err.classList.add('show'); return;
+      }
+      const hash = await hashPassword(password);
+      const fullName = first + ' ' + last;
+      const data = await api('players', {
+        method: 'POST',
+        body: JSON.stringify({ first_name: first, last_name: last, name: fullName, username, password_hash: hash, active: true })
+      });
+      if (data && data.length > 0) {
+        currentUser = data[0];
+        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+        onLoggedIn();
+      }
+    } catch(e) {
+      err.textContent = 'Error creating account. Please try again.'; err.classList.add('show');
+    }
+  }
+
+  function doLogout() {
+    sessionStorage.removeItem('currentUser');
+    currentUser = null;
+    document.getElementById('main-app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'block';
+    showLogin();
+  }
+
+  function onLoggedIn() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+    const fullName = (currentUser.first_name || '') + ' ' + (currentUser.last_name || '');
+    document.getElementById('user-bar-name').textContent = '👤 ' + fullName.trim();
+    document.getElementById('p-voting-as').value = fullName.trim();
+
+    const isAdmin = window.location.search.includes('admin=730cutoffelse%243fine') || window.location.search.includes('admin=730cutoffelse$3fine') || window.location.href.includes('Football-7pm?');
+    if (isAdmin) document.getElementById('admin-tab').style.display = '';
+
+    loadAll();
+  }
+
+  // INIT — check session
+  window.addEventListener('load', () => {
+    const saved = sessionStorage.getItem('currentUser');
+    if (saved) { currentUser = JSON.parse(saved); onLoggedIn(); }
+  });
+
   async function loadAll() {
-    await Promise.all([loadGame(), loadVotes(), loadPlayers(), loadLocations()]);
+    await Promise.all([loadLocations(), loadVotes()]);
+    await loadGame();
   }
 
   function getAutoGame() {
     const now = new Date();
-    const day = now.getDay(); // 0=Sun,1=Mon,2=Tue,3=Wed,4=Thu,5=Fri,6=Sat
+    const day = now.getDay();
     const pad = n => String(n).padStart(2, '0');
     const dateStr = d => d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
-
     const schedule = { 1: 'Russell Creek', 3: 'Carpenter Park', 5: 'Old Sheppard', 6: 'Old Sheppard' };
-
-    if (schedule[day]) {
-      return { location: schedule[day], date: dateStr(now) };
-    }
-    // Find next scheduled day
+    if (schedule[day]) return { location: schedule[day], date: dateStr(now) };
     for (let i = 1; i <= 7; i++) {
       const next = new Date(now);
       next.setDate(now.getDate() + i);
       const nextDay = next.getDay();
-      if (schedule[nextDay]) {
-        return { location: schedule[nextDay], date: dateStr(next) };
-      }
+      if (schedule[nextDay]) return { location: schedule[nextDay], date: dateStr(next) };
     }
     return { location: 'Russell Creek', date: dateStr(now) };
   }
@@ -278,25 +465,16 @@
       const data = await api('game?order=id&limit=1');
       if (data && data.length > 0) {
         game = data[0];
-
-        // Auto-update game based on current date if date has changed
         const auto = getAutoGame();
         const locObj = locations.find(l => l.name === auto.location);
         const autoTitle = locObj ? locObj.name + ' · ' + locObj.day_time : auto.location;
-
         if (game.date !== auto.date) {
-          const updated = {
-            date: auto.date,
-            location: auto.location,
-            title: autoTitle,
-            time: '19:00'
-          };
+          const updated = { date: auto.date, location: auto.location, title: autoTitle, time: '19:00' };
           await api('game?id=eq.' + game.id, { method: 'PATCH', body: JSON.stringify(updated) });
-          // Clear votes from previous game
           try { await api('votes?id=gt.0', { method: 'DELETE' }); } catch(e) {}
           game = { ...game, ...updated };
+          votes = [];
         }
-
         document.getElementById('a-location').value = game.location || '';
         document.getElementById('a-title').value = game.title || '';
         document.getElementById('a-date').value = game.date || '';
@@ -317,8 +495,7 @@
 
   async function loadPlayers() {
     try {
-      players = await api('players?active=eq.true&order=name') || [];
-      renderPlayerDropdown();
+      players = await api('players?active=eq.true&order=first_name') || [];
       renderPlayersList();
     } catch(e) { console.error('loadPlayers:', e); }
   }
@@ -328,19 +505,7 @@
       locations = await api('locations?active=eq.true&order=name') || [];
       renderLocationDropdown();
       renderLocationsList();
-      if (game) {
-        document.getElementById('a-location').value = game.location || '';
-        updateTitleFromLocation();
-      }
     } catch(e) { console.error('loadLocations:', e); }
-  }
-
-  function renderPlayerDropdown() {
-    const sel = document.getElementById('player-name');
-    const cur = sel.value;
-    sel.innerHTML = '<option value="">— Select your name —</option>' +
-      players.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
-    sel.value = cur;
   }
 
   function renderLocationDropdown() {
@@ -354,10 +519,13 @@
 
   function renderPlayersList() {
     const el = document.getElementById('players-list');
-    if (!players.length) { el.innerHTML = '<div class="empty-state">No players yet</div>'; return; }
+    if (!players.length) { el.innerHTML = '<div class="empty-state">No players registered yet</div>'; return; }
     el.innerHTML = players.map(p => `
       <div class="list-row">
-        <span class="list-row-name">${p.name}</span>
+        <div>
+          <div class="list-row-name">${p.first_name || ''} ${p.last_name || ''}</div>
+          <div style="font-size:12px;color:#888;">@${p.username || ''}</div>
+        </div>
         <button class="del-btn" onclick="removePlayer(${p.id})" title="Remove">×</button>
       </div>`).join('');
   }
@@ -375,8 +543,7 @@
   function updateTitleFromLocation() {
     const val = document.getElementById('a-location').value;
     const loc = locations.find(l => l.name === val);
-    const title = loc ? loc.name + ' · ' + loc.day_time : val;
-    document.getElementById('a-title').value = title;
+    document.getElementById('a-title').value = loc ? loc.name + ' · ' + loc.day_time : val;
   }
 
   function refreshPlayerCard() {
@@ -400,37 +567,109 @@
     const inVotes = votes.filter(v => v.vote === 'In');
     const outVotes = votes.filter(v => v.vote === 'Out');
 
+    // Sort In votes by timestamp to determine confirmed vs waitlist
+    const sortedIn = [...inVotes].sort((a, b) => {
+      const ta = new Date(a.created_at || 0);
+      const tb = new Date(b.created_at || 0);
+      return ta - tb;
+    });
+    const CONFIRMED_MAX = 22;
+    const confirmed = sortedIn.slice(0, CONFIRMED_MAX);
+    const waitlist = sortedIn.slice(CONFIRMED_MAX);
+    const outVotesSorted = [...outVotes].sort((a, b) => new Date(a.updated_at || a.created_at || 0) - new Date(b.updated_at || b.created_at || 0));
+
     // Admin counts
-    document.getElementById('a-in').textContent = inVotes.length;
+    document.getElementById('a-in').textContent = confirmed.length + ' confirmed' + (waitlist.length > 0 ? ' + ' + waitlist.length + ' waiting' : '');
     document.getElementById('a-out').textContent = outVotes.length;
+
+    // Admin confirmed list
     const list = document.getElementById('a-player-list');
-    list.innerHTML = votes.length === 0
-      ? '<div class="empty-state">No votes yet</div>'
-      : votes.map(v => `
+    list.innerHTML = confirmed.length === 0
+      ? '<div class="empty-state">No confirmed players yet</div>'
+      : confirmed.map((v, i) => `
           <div class="list-row">
-            <span class="list-row-name">${v.name}</span>
-            <span class="badge ${v.vote === 'In' ? 'badge-in' : 'badge-out'}">${v.vote}</span>
-          </div>`).join('');
-
-    // Player view counts
-    document.getElementById('p-in-count').textContent = inVotes.length;
-    document.getElementById('p-out-count').textContent = outVotes.length;
-
-    const inList = document.getElementById('p-in-list');
-    inList.innerHTML = inVotes.length === 0
-      ? '<div class="empty-state">No one yet</div>'
-      : inVotes.map(v => `
-          <div class="list-row">
-            <span class="list-row-name">${v.name}</span>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:13px;font-weight:600;color:#888;min-width:20px;">${i+1}</span>
+              <div>
+                <div class="list-row-name">${v.name}</div>
+                <div style="font-size:11px;color:#aaa;">${formatTimestamp(v.updated_at || v.created_at)}</div>
+              </div>
+            </div>
             <span class="badge badge-in">In</span>
           </div>`).join('');
 
-    const outList = document.getElementById('p-out-list');
-    outList.innerHTML = outVotes.length === 0
-      ? '<div class="empty-state">No one yet</div>'
-      : outVotes.map(v => `
+    // Admin waitlist
+    const aWaitlist = document.getElementById('a-waitlist');
+    aWaitlist.innerHTML = waitlist.length === 0
+      ? '<div class="empty-state">No one waiting</div>'
+      : waitlist.map((v, i) => `
           <div class="list-row">
-            <span class="list-row-name">${v.name}</span>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:13px;font-weight:600;color:#888;min-width:20px;">#${i+1}</span>
+              <div>
+                <div class="list-row-name">${v.name}</div>
+                <div style="font-size:11px;color:#aaa;">${formatTimestamp(v.updated_at || v.created_at)}</div>
+              </div>
+            </div>
+            <span class="badge" style="background:#FAEEDA;color:#633806;">Wait</span>
+          </div>`).join('');
+
+    // Admin out list
+    const aOutList = document.getElementById('a-out-list');
+    aOutList.innerHTML = outVotesSorted.length === 0
+      ? '<div class="empty-state">No one voted out</div>'
+      : outVotesSorted.map(v => `
+          <div class="list-row">
+            <div>
+              <div class="list-row-name">${v.name}</div>
+              <div style="font-size:11px;color:#aaa;">${formatTimestamp(v.updated_at || v.created_at)}</div>
+            </div>
+            <span class="badge badge-out">Out</span>
+          </div>`).join('');
+
+    // Player counts
+    document.getElementById('p-in-count').textContent = confirmed.length;
+    document.getElementById('p-out-count').textContent = outVotes.length;
+
+    // Player confirmed list
+    document.getElementById('p-in-list').innerHTML = confirmed.length === 0
+      ? '<div class="empty-state">No one yet</div>'
+      : confirmed.map((v, i) => `
+          <div class="list-row">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:13px;font-weight:600;color:#888;min-width:20px;">${i+1}</span>
+              <div>
+                <div class="list-row-name">${v.name}</div>
+                <div style="font-size:11px;color:#aaa;">${formatTimestamp(v.updated_at || v.created_at)}</div>
+              </div>
+            </div>
+            <span class="badge badge-in">In</span>
+          </div>`).join('');
+
+    // Player waitlist
+    document.getElementById('p-waitlist').innerHTML = waitlist.length === 0
+      ? '<div class="empty-state">No one waiting</div>'
+      : waitlist.map((v, i) => `
+          <div class="list-row">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:13px;font-weight:600;color:#888;min-width:20px;">#${i+1}</span>
+              <div>
+                <div class="list-row-name">${v.name}</div>
+                <div style="font-size:11px;color:#aaa;">${formatTimestamp(v.updated_at || v.created_at)}</div>
+              </div>
+            </div>
+            <span class="badge" style="background:#FAEEDA;color:#633806;">Wait</span>
+          </div>`).join('');
+
+    // Player out list
+    document.getElementById('p-out-list').innerHTML = outVotesSorted.length === 0
+      ? '<div class="empty-state">No one yet</div>'
+      : outVotesSorted.map(v => `
+          <div class="list-row">
+            <div>
+              <div class="list-row-name">${v.name}</div>
+              <div style="font-size:11px;color:#aaa;">${formatTimestamp(v.updated_at || v.created_at)}</div>
+            </div>
             <span class="badge badge-out">Out</span>
           </div>`).join('');
   }
@@ -442,30 +681,67 @@
     document.getElementById('err-vote').style.display = 'none';
   }
 
+  function isGameDay() {
+    if (!game || !game.date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const gameDate = new Date(game.date + 'T00:00:00');
+    return today >= gameDate;
+  }
+
+  function formatTimestamp(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+      ' at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+
   async function submitVote() {
-    const name = document.getElementById('player-name').value;
-    document.getElementById('err-name').style.display = name ? 'none' : 'block';
+    if (!currentUser) return;
     document.getElementById('err-vote').style.display = selectedVote ? 'none' : 'block';
-    if (!name || !selectedVote) return;
+    if (!selectedVote) return;
+
+    const fullName = (currentUser.first_name || '') + ' ' + (currentUser.last_name || '');
     const btn = document.getElementById('submit-btn');
+    const infoEl = document.getElementById('vote-info');
     btn.textContent = 'Submitting...'; btn.disabled = true;
-    document.getElementById('vote-info').textContent = '';
+    infoEl.textContent = '';
+
+    // Lock votes on game day
+    if (isGameDay()) {
+      infoEl.textContent = 'Votes are locked on game day.';
+      btn.textContent = 'Submit vote'; btn.disabled = false;
+      return;
+    }
+
     try {
-      const existing = votes.find(v => v.name.toLowerCase() === name.toLowerCase());
+      const existing = votes.find(v => v.name.toLowerCase() === fullName.trim().toLowerCase());
       if (existing) {
-        await api('votes?id=eq.' + existing.id, { method: 'PATCH', body: JSON.stringify({ vote: selectedVote }) });
+        const now = new Date().toISOString();
+        const patch = { vote: selectedVote, updated_at: now };
+        // If changing from Out -> In, reset created_at so they join back of queue
+        if (existing.vote === 'Out' && selectedVote === 'In') {
+          patch.created_at = now;
+        }
+        await api('votes?id=eq.' + existing.id, {
+          method: 'PATCH',
+          body: JSON.stringify(patch)
+        });
       } else {
-        await api('votes', { method: 'POST', body: JSON.stringify({ name, vote: selectedVote }) });
+        await api('votes', {
+          method: 'POST',
+          body: JSON.stringify({ name: fullName.trim(), vote: selectedVote, created_at: new Date().toISOString() })
+        });
       }
       await loadVotes();
       const s = document.getElementById('vote-success');
       s.style.display = 'block';
       setTimeout(() => s.style.display = 'none', 2500);
-      document.getElementById('player-name').value = '';
       selectedVote = null;
       document.getElementById('btn-in').classList.remove('selected');
       document.getElementById('btn-out').classList.remove('selected');
-    } catch(e) { document.getElementById('vote-info').textContent = 'Error saving vote. Please try again.'; }
+    } catch(e) { infoEl.textContent = 'Error saving vote. Please try again.'; }
+
     btn.textContent = 'Submit vote'; btn.disabled = false;
   }
 
@@ -474,21 +750,13 @@
     const loc = document.getElementById('a-location').value;
     const locObj = locations.find(l => l.name === loc);
     const title = locObj ? locObj.name + ' · ' + locObj.day_time : loc;
-    const updated = {
-      title,
-      date: document.getElementById('a-date').value,
-      time: document.getElementById('a-time').value,
-      location: loc,
-      max_players: parseInt(document.getElementById('a-max').value)
-    };
+    const updated = { title, date: document.getElementById('a-date').value, time: document.getElementById('a-time').value, location: loc, max_players: parseInt(document.getElementById('a-max').value) };
     try {
       await api('game?id=eq.' + game.id, { method: 'PATCH', body: JSON.stringify(updated) });
       game = { ...game, ...updated };
       document.getElementById('a-title').value = title;
       refreshPlayerCard();
-      const s = document.getElementById('save-success');
-      s.style.display = 'block';
-      setTimeout(() => s.style.display = 'none', 2000);
+      flash('save-success');
     } catch(e) { console.error('saveGame:', e); }
   }
 
@@ -497,22 +765,8 @@
     try {
       await api('votes?id=gt.0', { method: 'DELETE' });
       await loadVotes();
-      const s = document.getElementById('clear-success');
-      s.style.display = 'block';
-      setTimeout(() => s.style.display = 'none', 2000);
+      flash('clear-success');
     } catch(e) { console.error('clearVotes:', e); }
-  }
-
-  async function addPlayer() {
-    const input = document.getElementById('new-player-name');
-    const name = input.value.trim();
-    if (!name) return;
-    try {
-      await api('players', { method: 'POST', body: JSON.stringify({ name, active: true }) });
-      input.value = '';
-      await loadPlayers();
-      flash('player-success');
-    } catch(e) { console.error('addPlayer:', e); }
   }
 
   async function removePlayer(id) {
@@ -548,9 +802,6 @@
     setTimeout(() => el.style.display = 'none', 2000);
   }
 
-  const isAdmin = window.location.search.includes('admin=730cutoffelse%243fine') || window.location.search.includes('admin=730cutoffelse$3fine') || window.location.href.includes('Football-7pm?');
-  if (isAdmin) document.getElementById('admin-tab').style.display = '';
-
   function switchTab(tab) {
     document.querySelectorAll('.tab').forEach((t, i) => {
       t.classList.toggle('active', (tab === 'player' && i === 0) || (tab === 'admin' && i === 1));
@@ -559,10 +810,10 @@
     document.getElementById('tab-admin').classList.toggle('active', tab === 'admin');
   }
 
-  function switchSubTab(name) {
+  function switchSubTab(name, e) {
     document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.subtab').forEach(t => t.style.display = 'none');
-    event.target.classList.add('active');
+    if (e && e.target) e.target.classList.add('active');
     document.getElementById('subtab-' + name).style.display = 'block';
     if (name === 'votes') loadVotes();
     if (name === 'players') loadPlayers();
@@ -583,8 +834,15 @@
     return ((h % 12) || 12) + ':' + String(m).padStart(2, '0') + ' ' + (h >= 12 ? 'PM' : 'AM');
   }
 
-  loadAll();
   setInterval(loadVotes, 30000);
+
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js')
+        .catch(e => console.log('SW registration failed:', e));
+    });
+  }
 </script>
 </body>
 </html>
